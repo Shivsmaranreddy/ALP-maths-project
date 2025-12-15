@@ -1,17 +1,16 @@
 // ---------------------------------
-// Global Variables
+// Globals
 // ---------------------------------
 let scene, camera, renderer, shape, geometry, controls;
+let currentShape = "cube";
 
 // ---------------------------------
 // Init
 // ---------------------------------
 function init() {
-  // Scene
   scene = new THREE.Scene();
   scene.background = new THREE.Color(0x111111);
 
-  // Camera
   camera = new THREE.PerspectiveCamera(
     75,
     window.innerWidth / window.innerHeight,
@@ -20,37 +19,30 @@ function init() {
   );
   camera.position.set(3, 3, 5);
 
-  // Renderer
   renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
-  // Geometry + Material
-  geometry = new THREE.BoxGeometry(1, 1, 1);
   const material = new THREE.MeshPhongMaterial({ color: 0x00ff88 });
+  geometry = new THREE.BoxGeometry(1, 1, 1);
   shape = new THREE.Mesh(geometry, material);
   scene.add(shape);
 
-  // Lights
   scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 
-  const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-  dirLight.position.set(5, 5, 5);
-  scene.add(dirLight);
+  const light = new THREE.DirectionalLight(0xffffff, 1);
+  light.position.set(5, 5, 5);
+  scene.add(light);
 
-  // Orbit Controls
   controls = new THREE.OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
 
-  // UI
   createUI();
-
-  // Resize
   window.addEventListener("resize", onWindowResize);
 }
 
 // ---------------------------------
-// UI Creation (Injected via JS)
+// UI
 // ---------------------------------
 function createUI() {
   const ui = document.createElement("div");
@@ -64,47 +56,95 @@ function createUI() {
   ui.style.zIndex = "10";
 
   ui.innerHTML = `
-    <label>Width
-      <input type="range" id="width" min="0.5" max="5" step="0.1" value="1">
-    </label><br>
-    <label>Height
-      <input type="range" id="height" min="0.5" max="5" step="0.1" value="1">
-    </label><br>
-    <label>Depth
-      <input type="range" id="depth" min="0.5" max="5" step="0.1" value="1">
+    <label>
+      Shape:
+      <select id="shapeSelect">
+        <option value="cube">Cube</option>
+        <option value="sphere">Sphere</option>
+        <option value="tetra">Tetrahedron</option>
+      </select>
     </label>
+    <div id="params"></div>
   `;
 
   document.body.appendChild(ui);
 
-  const w = ui.querySelector("#width");
-  const h = ui.querySelector("#height");
-  const d = ui.querySelector("#depth");
+  const shapeSelect = ui.querySelector("#shapeSelect");
+  const paramsDiv = ui.querySelector("#params");
 
-  function update() {
-    geometry.dispose();
-    geometry = new THREE.BoxGeometry(
-      parseFloat(w.value),
-      parseFloat(h.value),
-      parseFloat(d.value)
-    );
-    shape.geometry = geometry;
-  }
+  shapeSelect.onchange = () => {
+    currentShape = shapeSelect.value;
+    buildParamsUI(paramsDiv);
+    updateGeometry();
+  };
 
-  w.oninput = update;
-  h.oninput = update;
-  d.oninput = update;
+  buildParamsUI(paramsDiv);
 }
 
 // ---------------------------------
-// Animate
+// Parameter UI per Shape
+// ---------------------------------
+function buildParamsUI(container) {
+  if (currentShape === "cube") {
+    container.innerHTML = `
+      <label>Width <input type="range" id="w" min="0.5" max="5" step="0.1" value="1"></label><br>
+      <label>Height <input type="range" id="h" min="0.5" max="5" step="0.1" value="1"></label><br>
+      <label>Depth <input type="range" id="d" min="0.5" max="5" step="0.1" value="1"></label>
+    `;
+  }
+
+  if (currentShape === "sphere") {
+    container.innerHTML = `
+      <label>Radius <input type="range" id="r" min="0.5" max="3" step="0.1" value="1"></label><br>
+      <label>Segments <input type="range" id="seg" min="8" max="64" step="1" value="32"></label>
+    `;
+  }
+
+  if (currentShape === "tetra") {
+    container.innerHTML = `
+      <label>Size <input type="range" id="size" min="0.5" max="4" step="0.1" value="1"></label>
+    `;
+  }
+
+  container.querySelectorAll("input").forEach(input => {
+    input.oninput = updateGeometry;
+  });
+}
+
+// ---------------------------------
+// Geometry Builder
+// ---------------------------------
+function updateGeometry() {
+  geometry.dispose();
+
+  if (currentShape === "cube") {
+    const w = document.getElementById("w").value;
+    const h = document.getElementById("h").value;
+    const d = document.getElementById("d").value;
+    geometry = new THREE.BoxGeometry(w, h, d);
+  }
+
+  if (currentShape === "sphere") {
+    const r = document.getElementById("r").value;
+    const seg = document.getElementById("seg").value;
+    geometry = new THREE.SphereGeometry(r, seg, seg);
+  }
+
+  if (currentShape === "tetra") {
+    const size = document.getElementById("size").value;
+    geometry = new THREE.TetrahedronGeometry(size);
+  }
+
+  shape.geometry = geometry;
+}
+
+// ---------------------------------
+// Animation
 // ---------------------------------
 function animate() {
   requestAnimationFrame(animate);
-
   shape.rotation.y += 0.003;
   controls.update();
-
   renderer.render(scene, camera);
 }
 
@@ -122,5 +162,4 @@ function onWindowResize() {
 // ---------------------------------
 init();
 animate();
-
 
